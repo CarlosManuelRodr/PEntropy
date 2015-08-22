@@ -1,19 +1,45 @@
+/**
+* @file auxiliar.h
+* @brief Auxiliar functions. Mostly copied from https://github.com/CarlosManuelRodr/FreewayAC.
+* @author Carlos Manuel Rodríguez Martínez
+* @date 22/08/2015
+*/
+
 #pragma once
 #include <algorithm>
 #include <sstream>
 #include <vector>
 #include <string>
+#include <chrono>
+#include "ThreadPool.h"
 
 /****************************
 *                           *
-*   Contenedor de matriz    *
+*         Benchmark         *
 *                           *
 ****************************/
 
-/**
-* @class Matrix
-* @brief Contenedor de matriz
-**/
+template<typename TimeT = std::chrono::milliseconds>
+struct aux_measure_time
+{
+	// http://stackoverflow.com/questions/2808398/easily-measure-elapsed-time
+	template<typename F, typename ...Args>
+	static typename TimeT::rep execution(F func, Args&&... args)
+	{
+		auto start = std::chrono::system_clock::now();
+		func(std::forward<Args>(args)...);
+		auto duration = std::chrono::duration_cast< TimeT>
+			(std::chrono::system_clock::now() - start);
+		return duration.count();
+	}
+};
+
+/****************************
+*                           *
+*     Matrix container      *
+*                           *
+****************************/
+
 template <class T> class Matrix
 {
 	T** m_matrix;
@@ -24,48 +50,13 @@ template <class T> class Matrix
 	void Deallocate();
 public:
 
-	///@brief Constructor por defecto.
 	Matrix();
-
-	///@brief Constructor copia.
-	Matrix(const Matrix<T> &other);
-
-	///@brief Crea matriz sin especificar elementos.
 	Matrix(unsigned int rows, unsigned int cols);
-
-	///@brief Crea matriz desde arrays.
-	Matrix(unsigned int rows, unsigned int cols, T** input);
-
 	~Matrix();
 
-	// ## Asignación de valores. ##
-
-	///@brief Crea matriz sin especificar elementos.
 	int SetMatrix(unsigned int rows, unsigned int cols);
-
-	///@brief Crea matriz desde arrays.
-	int SetMatrix(unsigned int rows, unsigned int cols, T** input);
-
-	///@brief Copia matriz.
-	int SetMatrix(Matrix<T> *input);
-
-	///@brief Asigna elemento con seguridad.
-	void SetElement(unsigned int i, unsigned int j, T val);
-
-	///@brief Asigna val a todos los elementos.
 	void Assign(T val);
 
-
-	// ## Obtención de valores. ##
-	T** GetMatrix();                            ///< Devuelve puntero a matriz.
-	std::vector<T> GetRow(unsigned int row);    ///< Devuelve vector de fila especificada.
-	unsigned int GetColumns();                  ///< Devuelve número de columnas.
-	unsigned int GetRows();                     ///< Devuelve número de fila.as
-	T Maximum();                                ///< Devuelve valor máximo dentro de matriz.
-	bool IsOk();                                ///< Devuelve status.
-
-												///@brief Acceso seguro a elementos.
-	T At(unsigned int i, unsigned int j);
 	T*& operator[](const unsigned int pos);
 };
 
@@ -75,18 +66,6 @@ template <class T> Matrix<T>::Matrix()
 	m_nrows = 0;
 	m_status = 0;
 	m_matrix = nullptr;
-}
-template <class T> Matrix<T>::Matrix(const Matrix<T> &other)
-{
-	m_matrix = nullptr;
-	m_status = this->SetMatrix(other.m_nrows, other.m_ncols, other.m_matrix);
-}
-template <class T> Matrix<T>::Matrix(unsigned int rows, unsigned int cols, T** inputMatrix)
-{
-	m_matrix = nullptr;
-	m_ncols = 0;
-	m_nrows = 0;
-	m_status = this->SetMatrix(rows, cols, inputMatrix);
 }
 template <class T> Matrix<T>::Matrix(unsigned int rows, unsigned int cols)
 {
@@ -110,45 +89,6 @@ template <class T> void Matrix<T>::Deallocate()
 		}
 		delete[] m_matrix;
 	}
-}
-template <class T> int Matrix<T>::SetMatrix(Matrix<T> *matrix)
-{
-	return this->SetMatrix(matrix->GetRows(), matrix->GetColumns(), matrix->GetMatrix());
-}
-template <class T> int Matrix<T>::SetMatrix(unsigned int rows, unsigned int cols, T** inputMatrix)
-{
-	this->Deallocate();
-	m_nrows = rows;
-	m_ncols = cols;
-	try
-	{
-		m_matrix = new T*[m_nrows];
-		for (unsigned int i = 0; i < m_nrows; i++)
-			m_matrix[i] = new T[m_ncols];
-	}
-	catch (std::bad_alloc&)
-	{
-		return 1;
-	}
-
-	// Assigna valores.
-	if (inputMatrix != nullptr)
-	{
-		for (unsigned int i = 0; i < m_nrows; i++)
-		{
-			for (unsigned int j = 0; j < m_ncols; j++)
-				m_matrix[i][j] = inputMatrix[i][j];
-		}
-	}
-	else
-	{
-		for (unsigned int i = 0; i < m_nrows; i++)
-		{
-			for (unsigned int j = 0; j < m_ncols; j++)
-				m_matrix[i][j] = 0;
-		}
-	}
-	return 0;
 }
 template <class T> int Matrix<T>::SetMatrix(unsigned int rows, unsigned int cols)
 {
@@ -175,51 +115,6 @@ template <class T> void Matrix<T>::Assign(T val)
 			m_matrix[i][j] = val;
 	}
 }
-template <class T> T** Matrix<T>::GetMatrix()
-{
-	return m_matrix;
-}
-template <class T> void Matrix<T>::SetElement(unsigned int i, unsigned int j, T val)
-{
-	if ((i < m_nrows && i >= 0) && (j < m_ncols && j >= 0))
-		m_matrix[i][j] = val;
-}
-template <class T> T Matrix<T>::At(unsigned int i, unsigned int j)
-{
-	if ((i < m_nrows && i >= 0) && (j < m_ncols && j >= 0))
-		return m_matrix[i][j];
-	else
-		return 0;
-}
-template <class T> std::vector<T> Matrix<T>::GetRow(unsigned int fil)
-{
-	std::vector<T> out;
-	for (int j = 0; j < m_ncols; j++)
-		out.push_back(m_matrix[fil][j]);
-	return out;
-}
-template <class T> unsigned int Matrix<T>::GetColumns()
-{
-	return m_ncols;
-}
-template <class T> unsigned int Matrix<T>::GetRows()
-{
-	return m_nrows;
-}
-template <class T> T Matrix<T>::Maximum()
-{
-	std::vector<T> tmp;
-	for (unsigned i = 0; i < m_nrows; i++)
-		tmp.push_back(max_element(m_matrix[i], m_matrix[i] + m_ncols));
-	return max_element(tmp.begin(), tmp.end());
-}
-template <class T> bool Matrix<T>::IsOk()
-{
-	if (m_status == 0)
-		return true;
-	else
-		return false;
-}
 template <class T> T*& Matrix<T>::operator[](const unsigned int pos)
 {
 	return m_matrix[pos];
@@ -227,14 +122,10 @@ template <class T> T*& Matrix<T>::operator[](const unsigned int pos)
 
 /****************************
 *                           *
-*       Coordenadas         *
+*       Coordinates         *
 *                           *
 ****************************/
 
-/**
-* @class Coord
-* @brief Almacenamiento de coordenadas 2D.
-**/
 template <class T> class Coord
 {
 public:
@@ -327,52 +218,44 @@ template <class T> std::vector<T> aux_csv_to_vector(std::string in)
 
 /****************************
 *                           *
-*  Funciones para exportar  *
+*      Export functions     *
 *                           *
 ****************************/
 
 
-/**
-* @brief Exporta datos a archivo csv.
-* @param data1 Lista de datos a exportar.
-* @param data2 Lista de datos a exportar.
-* @param filename Archivo a exportar los datos.
-*/
 template <class N> int export_csv(std::vector<N> data_1, std::vector<N> data_2, const std::string filename)
 {
-	if (data_1.size() == data_2.size())
+	if (data_1.size == 0 || data_2.size == 0)
 	{
-		std::ofstream file(filename.c_str(), std::ofstream::out);
-		if (file.is_open())
+		std::cout << "Nothing to export." << std::endl;
+		return 1;
+	}
+	if (data_1.size() != data_2.size())
+	{
+		std::cout << "Error: Vector sizes don't match." << std::endl;
+		return 1;
+	}
+
+	std::ofstream file(filename.c_str(), std::ofstream::out);
+	if (file.is_open())
+	{
+		for (unsigned i = 0; i < data_1.size(); ++i)
 		{
-			for (unsigned i = 0; i < data_1.size(); ++i)
-			{
-				if (i - data_1.size() != 0)
-					file << data_1[i] << ", " << data_2[i] << std::endl;
-				else
-					file << data_1[i] << ", " << data_2[i];
-			}
-			file.close();
-			return 0;
+			if (i - data_1.size() != 0)
+				file << data_1[i] << ", " << data_2[i] << std::endl;
+			else
+				file << data_1[i] << ", " << data_2[i];
 		}
-		else
-		{
-			std::cout << "Error: No se pudo crear archivo de salida." << std::endl;
-			return 1;
-		}
+		file.close();
+		return 0;
 	}
 	else
 	{
-		std::cout << "Error: Vectores de datos no coinciden en tamaño." << std::endl;
+		std::cout << "Error: Can't create out file." << std::endl;
 		return 1;
 	}
 }
 
-/**
-* @brief Exporta datos a archivo csv.
-* @param data Lista de datos a exportar.
-* @param filename Archivo a exportar los datos.
-*/
 template <class N> int export_csv(std::vector<Coord<N>> data, std::string filename)
 {
 	std::vector<N> data1, data2;
