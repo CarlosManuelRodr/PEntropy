@@ -280,13 +280,14 @@ struct Arg : public option::Arg
 };
 
 enum  OptionIndex {
-	UNKNOWN, FILEPATH, ORDER, LENGTH, SINGLE_THREAD, BENCHMARK, SILENT, HELP
+	UNKNOWN, FILEPATH, OUTNAME, ORDER, LENGTH, SINGLE_THREAD, BENCHMARK, SILENT, HELP
 };
 
 const option::Descriptor usage[] =
 {
 	{ UNKNOWN, 0, "", "",Arg::None, "INSTRUCCIONES: PEntropy [opciones]\n" },
 	{ FILEPATH, 0, "f", "file", Arg::Required, "  -f <arg>, \t--file=<arg>  \tArchivo de entrada." },
+	{ OUTNAME, 0, "s", "outname", Arg::Required, "  -s <arg>, \t--outname=<arg>  \tNombre del archivo de salida." },
 	{ ORDER, 0, "o", "order", Arg::Required, "  -o <arg>, \t--order=<arg>  \tOrden de la entropia de permutacion." },
 	{ LENGTH, 0, "l", "length", Arg::Required, "  -l <arg>, \t--length=<arg>  \tLongitud de intervalo T de la entropia de permutacion." },
 	{ SINGLE_THREAD, 0, "", "single_thread", Arg::None, " \t--single_thread  \tUna un solo hilo para para realizar el proceso." },
@@ -298,7 +299,8 @@ const option::Descriptor usage[] =
 
 int main(int argc, char* argv[])
 {
-	string filepath = "";
+	vector<string> filepaths;
+	string outname = "PEntropy";
 	int order = 6, length = 1000;
 	bool single_thread = false, benchmark = false, silent = false;
 
@@ -327,7 +329,10 @@ int main(int argc, char* argv[])
 		switch (opt.index())
 		{
 		case FILEPATH:
-			filepath = opt.arg;
+			filepaths = aux_csv_to_vector<string>(opt.arg);
+			break;
+		case OUTNAME:
+			outname = opt.arg;
 			break;
 		case ORDER:
 			order = aux_string_to_num<int>(opt.arg);
@@ -351,38 +356,51 @@ int main(int argc, char* argv[])
 	delete[] options;
 	delete[] buffer;
 
-	vector<Coord<double>> data = load_file(filepath);
-	if (data.empty())
+	for (int i = 0; i < filepaths.size(); i++)
 	{
+		cout << "Cargando archivo: " << filepaths[i] << endl;
+		vector<Coord<double>> data = load_file(filepaths[i]);
+		if (data.empty())
+		{
+			if (!silent)
+				cout << "El archivo esta vacio." << endl;
+			return 1;
+		}
+
 		if (!silent)
-			cout << "El archivo esta vacio." << endl;
-		return 1;
-	}
+		{
+			if (benchmark)
+				cout << "Midiendo tiempos calculo de entropia de permutacion." << endl;
+			else
+				cout << "Midiendo entropia de permutacion." << endl;
+		}
 
-	if (!silent)
-	{
+		int r = 0;
 		if (benchmark)
-			cout << "Midiendo tiempos calculo de entropia de permutacion." << endl;
+		{
+			cout << "Single thread: " << aux_measure_time<>::execution(measure_permutation_entropy_st, data, order, length) << " ms " << endl;
+			cout << "Multi thread: " << aux_measure_time<>::execution(measure_permutation_entropy_mt, data, order, length) << " ms " << endl;
+		}
 		else
-			cout << "Midiendo entropia de permutacion." << endl;
+		{
+			string outfile;
+			if (filepaths.size() == 1)
+				outfile = outname + ".csv";
+			else
+				outfile = outname + to_string(i + 1) + ".csv";
+
+			if (single_thread)
+				r = export_csv<double>(measure_permutation_entropy_st(data, order, length), outfile);
+			else
+				r = export_csv<double>(measure_permutation_entropy_mt(data, order, length), outfile);
+		}
+
+		if (r != 0)
+			return r;
+
+		if (!silent)
+			cout << "Hecho." << endl;
 	}
 
-	int r = 0;
-	if (benchmark)
-	{
-		cout << "Single thread: " << aux_measure_time<>::execution(measure_permutation_entropy_st, data, order, length) << " ms " << endl;
-		cout << "Multi thread: " << aux_measure_time<>::execution(measure_permutation_entropy_mt, data, order, length) << " ms " << endl;
-	}
-	else
-	{
-		if (single_thread)
-			r = export_csv<double>(measure_permutation_entropy_st(data, order, length), "PEntropy.csv");
-		else
-			r = export_csv<double>(measure_permutation_entropy_mt(data, order, length), "PEntropy.csv");
-	}
-
-	if (!silent)
-		cout << "Hecho." << endl;
-
-	return r;
+	return 0;
 }

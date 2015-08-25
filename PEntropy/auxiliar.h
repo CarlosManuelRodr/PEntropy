@@ -225,7 +225,7 @@ template <class T> std::vector<T> aux_csv_to_vector(std::string in)
 
 template <class N> int export_csv(std::vector<N> data_1, std::vector<N> data_2, const std::string filename)
 {
-	if (data_1.size == 0 || data_2.size == 0)
+	if (data_1.size() == 0 || data_2.size() == 0)
 	{
 		std::cout << "Nothing to export." << std::endl;
 		return 1;
