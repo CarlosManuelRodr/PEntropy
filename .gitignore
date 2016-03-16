@@ -68,15 +68,6 @@ build/
 /tmp/
 /bin/
 /Debug/
-/Release/
-/Release/
-/Release/
 /PEntropy/*.bmp
 /PEntropy/*.csv
-/scripts/Autonomous/
-/scripts/Circular/
-/scripts/Open/
-/scripts/Semaphore/
-/scripts/SimpleJunction/
-/scripts/Stop/
-/scripts/MultilaneCircular/
+/nbproject/

@@ -13,6 +13,13 @@
 
 using namespace std;
 
+
+/**********************
+*                     *
+*    Main algorithm   *
+*                     *
+**********************/
+
 // Multi thread.
 std::vector<Coord<double>> parallel_function(std::function<Coord<double>(int, vector<double>*, vector<double>*, int, int)> f, 
     int max_val, vector<double> &date, vector<double> &svalues, int order, int length)
@@ -32,7 +39,6 @@ std::vector<Coord<double>> parallel_function(std::function<Coord<double>(int, ve
 
 Coord<double> rep_pentropy(int rep, vector<double> *date, vector<double> *svalues, int order, int length)
 {
-    vector<double> entropies, intervals;
     vector<double> selecf, selecdl, neighbors, permutation, perminv;
 
     int T, swap_num, pass, factorial;
@@ -110,7 +116,7 @@ Coord<double> rep_pentropy(int rep, vector<double> *date, vector<double> *svalue
         vp[j][2] = vp[j][1] / (double)T;
         H -= vp[j][2] * log2(vp[j][2]);
     }
-    return Coord<double>(date->at(rep), H);
+    return Coord<double>(date->at(rep+T), H);
 }
 
 vector<Coord<double>> measure_permutation_entropy_mt(vector<Coord<double>> data, int order, int length)
@@ -141,7 +147,7 @@ vector<Coord<double>> measure_permutation_entropy_st(vector<Coord<double>> data,
         svalues.push_back(data[i].GetY());
     }
 
-    // Based on a routine by David Hernández Enríquez.
+    // Based on a routine by David Hernï¿½ndez Enrï¿½quez.
     if (date.size() != svalues.size())
     {
         cout << "Error: List length don't match." << endl;
@@ -149,7 +155,6 @@ vector<Coord<double>> measure_permutation_entropy_st(vector<Coord<double>> data,
     }
 
     vector<Coord<double>> out;
-    vector<double> entropies, intervals;
     vector<double> selecf, selecdl, neighbors, permutation, perminv;
 
     int T, swap_num, pass, factorial;
@@ -231,7 +236,7 @@ vector<Coord<double>> measure_permutation_entropy_st(vector<Coord<double>> data,
             vp[j][2] = vp[j][1] / (double)T;
             H -= vp[j][2] * log2(vp[j][2]);
         }
-        out.push_back(Coord<double>(date[rep], H));
+        out.push_back(Coord<double>(date[rep+T], H));
     }
     return out;
 }
@@ -260,11 +265,11 @@ vector<Coord<double>> load_file(string filepath)
 }
 
 
-/****************************
-*                           *
-*   Parser de argumentos    *
-*                           *
-****************************/
+/**********************
+*                     *
+*   Argument parser   *
+*                     *
+**********************/
 
 #if !defined(MATHEMATICA)
 
@@ -312,7 +317,7 @@ int main(int argc, char* argv[])
     int order = 6, length = 1000;
     bool single_thread = false, benchmark = false, silent = false;
 
-    // Ejecuta parser de argumentos.
+    // Execute argument parser.
     argc -= (argc > 0); argv += (argc > 0);
     option::Stats  stats(usage, argc, argv);
     option::Option *options = new option::Option[stats.options_max];
