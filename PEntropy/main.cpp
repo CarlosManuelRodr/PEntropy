@@ -4,7 +4,13 @@
 #include <fstream>
 #include <string>
 #include "auxiliar.h"
+
+#if defined (MATHEMATICA)
+#include "mathlink.h"
+#else
 #include "optionparser.h"
+#endif
+
 using namespace std;
 
 // Multi thread.
@@ -248,7 +254,7 @@ vector<Coord<double>> load_file(string filepath)
     }
     else
     {
-        cout << "Error al abrir archivo" << endl;
+        cout << "Error: Couldn't load file." << endl;
         return vector<Coord<double>>();
     }
 }
@@ -259,6 +265,8 @@ vector<Coord<double>> load_file(string filepath)
 *   Parser de argumentos    *
 *                           *
 ****************************/
+
+#if !defined(MATHEMATICA)
 
 struct Arg : public option::Arg
 {
@@ -274,7 +282,7 @@ struct Arg : public option::Arg
         if (option.arg != 0)
             return option::ARG_OK;
 
-        if (msg) PrintError("Opcion '", option, "' requiere un argumento.\n");
+        if (msg) PrintError("Option '", option, "' requires an argument.\n");
         return option::ARG_ILLEGAL;
     }
 };
@@ -285,15 +293,15 @@ enum  OptionIndex {
 
 const option::Descriptor usage[] =
 {
-    { UNKNOWN, 0, "", "",Arg::None, "INSTRUCCIONES: PEntropy [opciones]\n" },
-    { FILEPATH, 0, "f", "file", Arg::Required, "  -f <arg>, \t--file=<arg>  \tArchivo de entrada." },
-    { OUTNAME, 0, "s", "outname", Arg::Required, "  -s <arg>, \t--outname=<arg>  \tNombre del archivo de salida." },
-    { ORDER, 0, "o", "order", Arg::Required, "  -o <arg>, \t--order=<arg>  \tOrden de la entropia de permutacion." },
-    { LENGTH, 0, "l", "length", Arg::Required, "  -l <arg>, \t--length=<arg>  \tLongitud de intervalo T de la entropia de permutacion." },
-    { SINGLE_THREAD, 0, "", "single_thread", Arg::None, " \t--single_thread  \tUna un solo hilo para para realizar el proceso." },
-    { BENCHMARK, 0, "", "benchmark", Arg::None, " \t--benchmark  \tMide tiempo de calculo." },
-    { SILENT, 0, "", "silent", Arg::None, " \t--silent  \tSuprime salida de texto." },
-    { HELP,    0,"", "help", Arg::None,    "  \t--help  \tMuestra instrucciones." },
+    { UNKNOWN, 0, "", "",Arg::None, "INSTRUCTIONS: PEntropy [options]\n" },
+    { FILEPATH, 0, "f", "file", Arg::Required, "  -f <arg>, \t--file=<arg>  \tInput file." },
+    { OUTNAME, 0, "s", "outname", Arg::Required, "  -s <arg>, \t--outname=<arg>  \tOutput file name." },
+    { ORDER, 0, "o", "order", Arg::Required, "  -o <arg>, \t--order=<arg>  \tPermutation entropy order." },
+    { LENGTH, 0, "l", "length", Arg::Required, "  -l <arg>, \t--length=<arg>  \tInterval length." },
+    { SINGLE_THREAD, 0, "", "single_thread", Arg::None, " \t--single_thread  \tSingle threaded process." },
+    { BENCHMARK, 0, "", "benchmark", Arg::None, " \t--benchmark  \tMeasure execution time." },
+    { SILENT, 0, "", "silent", Arg::None, " \t--silent  \tSilent mode." },
+    { HELP,    0,"", "help", Arg::None,    "  \t--help  \tShow instructions." },
     { 0,0,0,0,0,0 }
 };
 
@@ -404,3 +412,47 @@ int main(int argc, char* argv[])
 
     return 0;
 }
+
+#else
+
+
+/**********************************
+*                                 *
+*   Mathematica Implementation    *
+*                                 *
+**********************************/
+
+void permutation_entropy(double* date, int nx1, double* svalues, int nx2, int order, int length)
+{
+    vector<double> v_date(date, date + nx1);
+    vector<double> v_svalues(svalues, svalues + nx2);
+    vector<Coord<double>> v_out;
+
+    if (nx1 != nx2)
+    {
+        v_out =  vector<Coord<double>>();
+    }
+
+    int n = nx1;
+    v_out = parallel_function(rep_pentropy, n - length + 1, v_date, v_svalues, order, length);
+        
+    const int dimensions[2] = {(int)v_out.size(), 2};
+    const char* heads[2] = {"List", "List"};
+    long depth = 2;
+    double *out = new double[2*n];
+    
+    for (int i=0; i < v_out.size(); i++)
+    {
+        out[2*i] = v_out[i].GetX();
+        out[2*i + 1] = v_out[i].GetY();
+    }
+    
+    MLPutReal64Array(stdlink, out, dimensions, heads, depth);
+}
+
+int main(int argc, char* argv[])
+{
+    return MLMain(argc, argv);
+}
+
+#endif

@@ -1,52 +1,47 @@
-WORKDIR = `pwd`
+VERSION=10.0
+MLINKDIR = /opt/Mathematica/SystemFiles/Links/MathLink/DeveloperKit/Linux-x86-64
+SYS = Linux-x86-64
+CADDSDIR = ${MLINKDIR}/CompilerAdditions
+DEFINES = MATHEMATICA
+EXTRA_CFLAGS=-m64 -D ${DEFINES}
 
-CC = gcc
-CXX = g++
-AR = ar
-LD = g++
-WINDRES = windres
+INCDIR = ${CADDSDIR}
+LIBDIR = ${CADDSDIR}
+SRCDIR = PEntropy
+OBJDIR = obj
+BINDIR = bin
 
-INC = 
-CFLAGS = -std=c++11
-RESINC = 
-LIBDIR = 
-LIB =  
-LDFLAGS = -pthread
+MPREP = ${CADDSDIR}/mprep
+RM = rm
 
-INC_RELEASE =  $(INC)
-CFLAGS_RELEASE =  $(CFLAGS) -O2 
-RESINC_RELEASE =  $(RESINC)
-RCFLAGS_RELEASE =  $(RCFLAGS)
-LIBDIR_RELEASE =  $(LIBDIR)
-LIB_RELEASE = $(LIB)
-LDFLAGS_RELEASE = $(LDFLAGS)
-OBJDIR_RELEASE = obj
-DEP_RELEASE = 
-OUT_RELEASE = bin/PEntropy
+CC = /usr/bin/cc
+CXX = /usr/bin/c++ -std=c++11 -pthread
 
-
-OBJ_RELEASE := 
-OBJ_RELEASE += \
-$(OBJDIR_RELEASE)/main.o \
-
-
-all: release
-
-clean: clean_release
-
-
-before_release: 
+# Shared
+clean: 
+	@echo "##########################"
+	@echo "#                        #"
+	@echo "#      Cleaning up       #"
+	@echo "#                        #"
+	@echo "##########################"
 	@echo ""
-	@echo "################################"
-	@echo "#                              #"
-	@echo "#      Building PEntropy       #"
-	@echo "#                              #"
-	@echo "################################"
-	@echo ""
-	@test -d bin/ || mkdir -p bin/
-	@test -d $(OBJDIR_RELEASE) || mkdir -p $(OBJDIR_RELEASE)
+	@rm -rf $(OBJDIR) $(BINDIR)
+	
 
-after_release: 
+# Mathematica
+
+before_mathematica: 
+	@echo ""
+	@echo "########################################"
+	@echo "#                                      #"
+	@echo "# Building PEntropy (for Mathematica)  #"
+	@echo "#                                      #"
+	@echo "########################################"
+	@echo ""
+	@test -d $(BINDIR) || mkdir -p $(BINDIR)
+	@test -d $(OBJDIR) || mkdir -p $(OBJDIR)
+
+after_mathematica: 
 	@echo ""
 	@echo "#############################"
 	@echo "#                           #"
@@ -55,26 +50,53 @@ after_release:
 	@echo "#############################"
 	@echo ""
 
-release: before_release out_release after_release
+mathematica : before_mathematica $(BINDIR)/MathematicaPEntropy after_mathematica
 
-out_release: $(OBJ_RELEASE) $(DEP_RELEASE)
-	$(LD) $(OBJ_RELEASE) $(LDFLAGS_RELEASE) $(LIBDIR_RELEASE) $(LIB_RELEASE) -o $(OUT_RELEASE)
+$(BINDIR)/MathematicaPEntropy : $(OBJDIR)/maintm.o $(OBJDIR)/main.o
+	${CXX} ${EXTRA_CFLAGS} -I${INCDIR} $(OBJDIR)/maintm.o $(OBJDIR)/main.o -L${LIBDIR} -lML64i4 -lm -lpthread -lrt -lstdc++ -ldl -luuid -o $@
+	
+$(OBJDIR)/maintm.o : $(OBJDIR)/maintm.c
+	${CXX} -c ${EXTRA_CFLAGS} -I${INCDIR} $(OBJDIR)/maintm.c -o $@
+	
+$(OBJDIR)/main.o: PEntropy/main.cpp
+	$(CXX) -c $(EXTRA_CFLAGS) -I${INCDIR} $(SRCDIR)/main.cpp -o $(OBJDIR)/main.o
+	
 
+$(OBJDIR)/maintm.c : $(SRCDIR)/main.tm
+	${MPREP} $? -o $@
+	
+	
+# CLI
+all: cli
 
-$(OBJDIR_RELEASE)/main.o: PEntropy/main.cpp
-	$(CXX) $(CFLAGS_RELEASE) $(INC_RELEASE) -c PEntropy/main.cpp -o $(OBJDIR_RELEASE)/main.o
-
-
-
-
-clean_release: 
-	@echo "########################################################"
-	@echo "#                                                      #"
-	@echo "#  Cleaning up                                         #"
-	@echo "#                                                      #"
-	@echo "########################################################"
+before_cli: 
 	@echo ""
-	@rm -f $(OBJ_RELEASE) $(OUT_RELEASE)
+	@echo "################################"
+	@echo "#                              #"
+	@echo "#      Building PEntropy       #"
+	@echo "#                              #"
+	@echo "################################"
+	@echo ""
+	@test -d $(BINDIR) || mkdir -p $(BINDIR)
+	@test -d $(OBJDIR) || mkdir -p $(OBJDIR)
 
+after_cli: 
+	@echo ""
+	@echo "#############################"
+	@echo "#                           #"
+	@echo "#            Done.          #"
+	@echo "#                           #"
+	@echo "#############################"
+	@echo ""
+	
+cli: before_cli build_cli out_cli after_cli
 
-.PHONY: before_release after_release clean_release
+build_cli: PEntropy/main.cpp
+	$(CXX) -c $(SRCDIR)/main.cpp -o $(OBJDIR)/main.o
+
+out_cli: $(OBJDIR)/main.o
+	$(CXX) $(OBJDIR)/main.o -o $(BINDIR)/PEntropy
+	
+.DEFAULT_GOAL := all
+
+.PHONY: before_cli after_cli
