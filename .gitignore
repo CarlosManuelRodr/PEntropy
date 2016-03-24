@@ -71,3 +71,4 @@ build/
 /PEntropy/*.bmp
 /PEntropy/*.csv
 /nbproject/
+/PEntropy/maintm.cpp

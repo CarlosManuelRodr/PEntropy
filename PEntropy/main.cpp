@@ -455,9 +455,26 @@ void permutation_entropy(double* date, int nx1, double* svalues, int nx2, int or
     MLPutReal64Array(stdlink, out, dimensions, heads, depth);
 }
 
+#if defined(WIN32)
+
+int __stdcall WinMain(HINSTANCE hinstCurrent, HINSTANCE hinstPrevious, LPSTR lpszCmdLine, int nCmdShow)
+{
+    char  buff[512];
+    char FAR * buff_start = buff;
+    char FAR * argv[32];
+    char FAR * FAR * argv_end = argv + 32;
+
+    if (!MLInitializeIcon(hinstCurrent, nCmdShow)) return 1;
+    MLScanString(argv, &argv_end, &lpszCmdLine, &buff_start);
+    return MLMain(argv_end - argv, argv);
+}
+
+#else
 int main(int argc, char* argv[])
 {
     return MLMain(argc, argv);
 }
+
+#endif
 
 #endif
