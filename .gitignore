@@ -34,6 +34,7 @@
 *.mid
 *.sdf
 *.opensdf
+*.xcodeproj
  
 # OS generated files #
 ######################
